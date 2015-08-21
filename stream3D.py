@@ -54,23 +54,23 @@ class GTK_Main(object):
 
         self.per_eye_w = 1280 / 2
         self.left_x = 0
-        self.right_x = 1280 / 2
+        self.right_x = 512
         self.offset_x = 0
 
         # Set up the gstreamer pipeline
         self.player = Gst.parse_launch(input_pipeline + ' ! ' +
-                'tee name=orig ! ' +
-                'videoscale add-borders=1 ! ' +
-                'video/x-raw,width=' + str(self.per_eye_w) + ',height=' +
-                str(h) + ' !  ' +
                 'tee name=tee ! ' +
+                'videocrop top=0 left=0 right=640 bottom=0 ! ' +
+		'videoflip method=clockwise ! ' +
                 'queue ! ' +
                 'videomixer name=mixer ! ' +
                 'xvimagesink double-buffer=false sync=false ' +
+		
                 'tee. ! ' +
+		'videocrop top=0 left=640 right=0 bottom=0 ! ' +
+'videoflip method=clockwise ! ' +
                 'queue ! ' +
-                'mixer. ' +
-                dump_pipeline)
+                'mixer. ')
         self.mixer = self.player.get_by_name('mixer')
         bus = self.player.get_bus()
         bus.add_signal_watch()
@@ -106,7 +106,7 @@ class GTK_Main(object):
     def on_sync_message(self, bus, message):
         if message.get_structure().get_name() == 'prepare-window-handle':
             imagesink = message.src
-
+		
             Gdk.threads_enter()
             imagesink.set_window_handle(
                     self.gst_window.get_property('window').get_xid())
