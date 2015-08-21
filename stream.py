@@ -4,7 +4,7 @@ import sys
 
 input_path = '/dev/video1'
 oculus_width = 1920
-oculus_height = 1080
+oculus_height = 1200
 
 if len(sys.argv) > 1:
     input_path = sys.argv[1]
@@ -37,28 +37,32 @@ class GTK_Main(object):
     def __init__(self, w, h, x, y):
         window = Gtk.Window(Gtk.WindowType.TOPLEVEL)
         window.set_decorated(False)
+	window.set_size_request(1280, 800)
         window.move(x, y)
-        window.resize(w, h)
-        window.fullscreen()
+
+        #window.resize(w/2, h/2)
+        #window.fullscreen()
+
         window.connect("destroy", Gtk.main_quit, "WM destroy")
         window.connect("key_press_event", self.on_key_press)
         self.gst_window = Gtk.DrawingArea()
+	#self.gst_window.set_size_request(1060, 397)
         window.add(self.gst_window)
         window.show_all()
 
         # TODO: disable screen saver (gsettings?)
 
-        self.per_eye_w = w / 2
+        self.per_eye_w = 1280 / 2
         self.left_x = 0
-        self.right_x = w / 2
+        self.right_x = 1280 / 2
         self.offset_x = 0
 
         # Set up the gstreamer pipeline
         self.player = Gst.parse_launch(input_pipeline + ' ! ' +
                 'tee name=orig ! ' +
-                'videoscale ! ' +
+                'videoscale add-borders=1 ! ' +
                 'video/x-raw,width=' + str(self.per_eye_w) + ',height=' +
-                str(h) + ' ! ' +
+                str(h) + ' !  ' +
                 'tee name=tee ! ' +
                 'queue ! ' +
                 'videomixer name=mixer ! ' +
@@ -102,6 +106,7 @@ class GTK_Main(object):
     def on_sync_message(self, bus, message):
         if message.get_structure().get_name() == 'prepare-window-handle':
             imagesink = message.src
+
             Gdk.threads_enter()
             imagesink.set_window_handle(
                     self.gst_window.get_property('window').get_xid())
@@ -140,47 +145,47 @@ class GTK_Main(object):
 #
 # We'd still need to use xrandr to actually rotate the screen, it seems.
 
-p = subprocess.Popen([ 'xrandr', '-q' ], stdout=subprocess.PIPE)
-output = p.communicate()[0]
-monitor_line = None
-resolution_str1 = ' ' + str(oculus_width) + 'x' + str(oculus_height) + '+'
-resolution_str2 = ' ' + str(oculus_height) + 'x' + str(oculus_width) + '+'
+#p = subprocess.Popen([ 'xrandr', '-q' ], stdout=subprocess.PIPE)
+#output = p.communicate()[0]
+#monitor_line = None
+#resolution_str1 = ' ' + str(oculus_width) + 'x' + str(oculus_height) + '+'
+#resolution_str2 = ' ' + str(oculus_height) + 'x' + str(oculus_width) + '+'
 
-for line in output.split('\n'):
-    if output_port and line.startswith(output_port):
-        monitor_line = line
-        break
-    if not output_port and (resolution_str1 in line or resolution_str2 in line):
-        monitor_line = line
-        break
+#for line in output.split('\n'):
+#    if output_port and line.startswith(output_port):
+#        monitor_line = line
+#        break
+#    if not output_port and (resolution_str1 in line or resolution_str2 in line):
+#        monitor_line = line
+#        break
 
-if not monitor_line:
-    if output_port:
-        sys.stderr.write(outout_port + ' not found\n')
-    else:
-        sys.stderr.write('No screen found with the right resolution\n')
-    sys.exit(-1)
+#if not monitor_line:
+#    if output_port:
+#        sys.stderr.write(outout_port + ' not found\n')
+#    else:
+#        sys.stderr.write('No screen found with the right resolution\n')
+#    sys.exit(-1)
 
-if not output_port:
-    output_port = monitor_line.split()[0]
-if 'disconnected' in monitor_line:
-    sys.stderr.write(output_port + ' seems to be disconnected\n')
-    sys.exit(-1)
+#if not output_port:
+#    output_port = monitor_line.split()[0]
+#if 'disconnected' in monitor_line:
+#    sys.stderr.write(output_port + ' seems to be disconnected\n')
+#    sys.exit(-1)
 
-match = re.search(r'\b([0-9]+)x([0-9]+)\+([0-9]+)\+([0-9]+)\b', monitor_line)
-w, h, x, y = [ int(n) for n in match.groups() ]
+#match = re.search(r'\b([0-9]+)x([0-9]+)\+([0-9]+)\+([0-9]+)\b', monitor_line)
+#w, h, x, y = [ int(n) for n in match.groups() ]
 
-sys.stderr.write('Using ' + output_port + ' for output\n')
+#sys.stderr.write('Using ' + output_port + ' for output\n')
 
 # If screen seems to be in vertical/portrait mode (height > width), rotate it
-if h > w:
-    sys.stderr.write('Setting --rotate left\n')
-    subprocess.check_call([ 'xrandr',
-            '--output', output_port,
-            '--rotate', 'left' ])
-    w, h = h, w
-
+#if h > w:
+#    sys.stderr.write('Setting --rotate left\n')
+#    subprocess.check_call([ 'xrandr',
+#            '--output', output_port,
+#            '--rotate', 'left' ])
+#    w, h = h, w
+#
 GObject.threads_init()
 Gst.init(None)
-GTK_Main(w, h, x, y)
+GTK_Main(1280, 800, 0, 0)
 Gtk.main()
